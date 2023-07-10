@@ -54,14 +54,22 @@ def rsa_keygen(n_bits, verbosity=1):
     return p, q, N, e, d
 
 
-def rsa_sign(p, q, N, d, m, f=0):
+def rsa_sign(p, q, N, d, m, n_bits, f=0):
     # find c == m^d (mod N)
     # using https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Computation
     
     # first compute a == m^d (mod p)
     a = pow(m, d, p)
-    # and b == m^d (mod q)
+    if f == 1:
+        # flip a random bit
+        a ^= 1<<(random.randint(0, n_bits-1))
+
+    # then compute b == m^d (mod q)
     b = pow(m, d, q)
+    if f == 2:
+        # flip a random bit
+        b ^= 1<<(random.randint(0, n_bits-1))
+
     # now c == a (mod p), c == b (mod q) can be computed in O(log(N)^2) time with CRT
     x, y, gcd = gcd_extended(p, q)
     assert(gcd == 1)
@@ -70,11 +78,11 @@ def rsa_sign(p, q, N, d, m, f=0):
     
     return c
 
-def check_rsa_sign(p, q, N, e, d):
+def check_rsa_sign(p, q, N, e, d, l):
     print("Checking rsa_sign")
     for _ in range(100):
         m = random.randint(2, N-1)
-        c = rsa_sign(p, q, N, d, m)
+        c = rsa_sign(p, q, N, d, m, l)
         assert(pow(c, e, N) == m)
     print("rsa_sign passed checks")
 
@@ -83,10 +91,12 @@ def attack(D, N, e):
 
 # Main Code
 if  __name__ == '__main__':
-    p, q, N, e, d = rsa_keygen(1024, verbosity=2)
-    check_rsa_sign(p, q, N, e, d)
+    l = 512
+    p, q, N, e, d = rsa_keygen(l, verbosity=2)
+    rsa_sign(p, q, N, d, random.randint(2, N-1), l, 1)
+    # check_rsa_sign(p, q, N, e, d, l)
     
 
-    D = functools.partial(rsa_sign, p, q, N, d)
+    D = functools.partial(rsa_sign, p, q, N, d, l)
 
     attack(D, N, e)
