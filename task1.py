@@ -41,7 +41,7 @@ def rsa_keygen(n_bits, verbosity=1):
     # d*e + a*phi_n == 1
     # this is why we ensured gcd(e, phi_n) == 1
     # this can be done by the extended euclidean alg.
-    d, a, gcd = gcd_extended(e, phi_n)
+    d, _, gcd = gcd_extended(e, phi_n)
     assert(gcd == 1)
     if verbosity >= 2: print("\tFound d")
 
@@ -51,21 +51,22 @@ def rsa_keygen(n_bits, verbosity=1):
         m = random.randint(2, N-1)
         assert(pow(pow(m, e, N), d, N) == m)
     if verbosity >= 2: print("\td,e,N passed checks")
+    if verbosity >= 1: print("Finished rsa_keygen")
     return p, q, N, e, d
 
 
-def rsa_sign(p, q, N, d, m, n_bits, f=0):
+def rsa_sign(p, q, N, d, n_bits, m, f=0):
     # find c == m^d (mod N)
     # using https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Computation
     
     # first compute a == m^d (mod p)
-    a = pow(m, d, p)
+    a = pow(m, d%(p-1), p)
     if f == 1:
         # flip a random bit
         a ^= 1<<(random.randint(0, n_bits-1))
 
     # then compute b == m^d (mod q)
-    b = pow(m, d, q)
+    b = pow(m, d%(q-1), q)
     if f == 2:
         # flip a random bit
         b ^= 1<<(random.randint(0, n_bits-1))
@@ -80,23 +81,43 @@ def rsa_sign(p, q, N, d, m, n_bits, f=0):
 
 def check_rsa_sign(p, q, N, e, d, l):
     print("Checking rsa_sign")
-    for _ in range(100):
+    for _ in range(1000):
         m = random.randint(2, N-1)
-        c = rsa_sign(p, q, N, d, m, l)
+        c = rsa_sign(p, q, N, d, l, m)
         assert(pow(c, e, N) == m)
     print("rsa_sign passed checks")
 
+
 def attack(D, N, e):
-    raise NotImplementedError()
+    print("Beginning attack!")
+    # can call D(m, f)
+    # using https://link.springer.com/article/10.1007/s001450010016:
+    m = random.randint(2, N)
+
+    S_faulty = D(m, 1) # just one call to D!
+
+    p = math.gcd(m - pow(S_faulty, e, N), N)
+    q = N//p
+    assert(p*q == N)
+    print("\tFound p, q!")
+    # now we have broken in and found p, q!
+    
+    # we can now find d to "prove" we have broken in
+    phi_n = (p-1)*(q-1)
+    d, _, gcd = gcd_extended(e, phi_n)
+    assert(gcd == 1)
+    print("\tFound d!")
+    print("Finished attack!")
+    return d
 
 # Main Code
 if  __name__ == '__main__':
-    l = 512
+    l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
-    rsa_sign(p, q, N, d, random.randint(2, N-1), l, 1)
     # check_rsa_sign(p, q, N, e, d, l)
     
 
     D = functools.partial(rsa_sign, p, q, N, d, l)
 
-    attack(D, N, e)
+    d2 = attack(D, N, e)
+    assert(d == d2)
