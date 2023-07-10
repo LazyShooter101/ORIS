@@ -44,6 +44,7 @@ def rsa_keygen(n_bits, verbosity=1):
     d, _, gcd = gcd_extended(e, phi_n)
     assert(gcd == 1)
     if verbosity >= 2: print("\tFound d")
+    d %= phi_n
 
     # now check that for some random message m,
     # we have that ((m^e)^d) == 1 (mod N)
@@ -79,11 +80,11 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     
     return c
 
-def check_rsa_sign(p, q, N, e, d, l):
+def check_rsa_sign(sign_func, p, q, N, e, d, l):
     print("Checking rsa_sign")
     for _ in range(1000):
         m = random.randint(2, N-1)
-        c = rsa_sign(p, q, N, d, l, m)
+        c = sign_func(p, q, N, d, l, m)
         assert(pow(c, e, N) == m)
     print("rsa_sign passed checks")
 
@@ -101,11 +102,12 @@ def attack(D, N, e):
     assert(p*q == N)
     print("\tFound p, q!")
     # now we have broken in and found p, q!
-    
+
     # we can now find d to "prove" we have broken in
     phi_n = (p-1)*(q-1)
     d, _, gcd = gcd_extended(e, phi_n)
     assert(gcd == 1)
+    d %= phi_n
     print("\tFound d!")
     print("Finished attack!")
     return d
@@ -114,8 +116,7 @@ def attack(D, N, e):
 if  __name__ == '__main__':
     l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
-    # check_rsa_sign(p, q, N, e, d, l)
-    
+    # check_rsa_sign(rsa_sign, p, q, N, e, d, l)
 
     D = functools.partial(rsa_sign, p, q, N, d, l)
 
