@@ -1,0 +1,202 @@
+# =============================================================================
+# 1. Write a Python program which models the attack
+
+Consider the following RSA-related [1] entry point, or "driver" function
+
+import functools
+
+if ( __name__ == '__main__' ) :
+  ( p, q, N, e, d ) = rsa_keygen( 1024 )
+
+  D = functools.partial( rsa_sign, p, q, N, d )
+
+  attack( D, N, e )
+
+which makes use of a three further, currently undefined functions.
+
+a. Write an RSA key generation function
+
+   def rsa_keygen( l ) : 
+     pass
+
+   that returns a tuple ( p, q, N, e, d ) where
+
+   - N = p * q for two randomly generated prime numbers p and q where 
+     both are l/2 bits long (meaning N is l bits long),
+   - e is a random number, constrained such that 
+
+     2 < e < \Phi( N ) 
+
+     and 
+
+     gcd( e, \Phi( N ) ) = 1,
+
+   - d = e^{1} \pmod{\Phi{N}}
+
+   Note that you can tell whether these parameters are valid by 
+
+   - generating a random number m modulo N,
+   - checking that
+
+     ( m^e )^d \equiv m \pmod{N}
+
+     i.e., that
+
+     pow( pow( m, e, N ), d, N ) == m
+
+     is true.
+
+b. Write an RSA signature function 
+
+   def rsa_sign( p, q, N, d, m, f = 0 ) :
+     pass
+
+   that returns 
+
+   c = m^d \pmod{N}
+
+   but performs that computation concretely by using the CRT [2]; if
+
+   - f = 0, the computation should complete correctly
+   - f = 1, the 1st "small" exponentiation modulo p is forced to be incorrect,
+   - f = 2, the 2nd "small" exponentiation modulo q is forced to be incorrect,
+
+   This is intended to model the ability to inject faults somehow: to model
+   this and force an incorrect intermediate value, you could, e.g., flip a 
+   random bit in that value (so if it should be 1 it is 0, and vice verse).
+
+c. Complete the function
+
+   def attack( D, N, e ) :
+     pass
+
+   so that it realises the so-called Bellcore attack [3] on D, the model of
+   a target device: note that D is a partial function of rsa_sign, meaning
+
+   - the attacker can compute RSA signatures by calling
+
+     D( m, f = 0 )
+
+   - although it does has access to the public values N and e, it *doesn't*
+     have access to the private values p, q, and d.
+
+Note that it may be useful to support your implementation (or verification
+of it) using additional modules such as PyCryptodome [4].
+
+# =============================================================================
+# 2. Upgrade the Python program so the target device model is more realistic
+
+Currently, your implementation of rsa_sign is likely to be quite high-level,
+i.e., not reflective of how a more realistic target device might implement
+the same functionality.  The goal here isn't to be "realistic" per se, just
+more so than, i.e., a step forward from task 1.
+
+a. Change rsa_sign to reflect a more realistic context.  For example, maybe 
+   the target device is a micro-controller that uses a co-processor for any
+   arithmetic modulo N.  This could mean the co-processor
+
+   - has some number of registers, i.e., an array R, each able to store a 
+     "large" integer of the size of N,
+   - is able to perform standard modular arithmetic operations based on 
+     those registers, e.g.,
+
+     R[x] =     R[y] + R[z] \pmod{N}
+     R[x] =     R[y] - R[z] \pmod{N}
+     R[x] =     R[y] * R[z] \pmod{N}
+     R[x] = 1 / R[y]        \pmod{N}
+     R[x] =   - R[y]        \pmod{N}
+
+     one per cycle: these can still be modelled by a Python function, e.g.,
+
+     def coprocessor_add( x, y, z, N ) :
+       R[x] = ( R[y] + R[z] ) % N
+
+  and the micro-controller invokes or "calls" those operations as need be.
+  Then, implementation of rsa_sign can as a series of co-processor "calls"
+  which explicitly replace what Python supports implicitly.  For example,
+  rather than
+
+  pow( x, y, N )
+
+  you'd implement an algorithm for modular exponentiation [Sec. 14.6, 5] 
+  (e.g., the left-to-right binary algorithm) by using the co-processor to 
+  perform modular square and multiplication operations.  
+
+  It'd also make sense for rsa_sign to return the total number of cycles,
+  as well as the resulting c.
+
+b. Change rsa_sign so the meaning of the f parameter is such that if
+
+   - f  = 0, the computation should complete correctly
+   - f != 0, the computation at cycle f is forced to be incorrect.
+
+c. Change attack so that it still works with the above in place.
+
+# =============================================================================
+# 3. Port the Python-based target device model to C
+
+Tasks 1. and 2. provide a functional model, or reference.  The next step
+towards use within the SCALE infrastructure would be to port the current,
+Python-based target device model, i.e., implementation of rsa_sign, to C.
+
+a. Port task 1. into C, which means
+
+   i.   reading  input (i.e., p, q, N, d, m, f), from stdin 
+   ii.  computing c = m^d \pmod{N},
+   iii. writing output (i.e., c)                 to   stdout.
+
+   Since C doesn't nativity support multi-precision integers, you'll need
+   to use a library to do so: GMP [6] is the standard choice.  You could
+   view this as offering an "external" version of the rsa_sign function,
+   which can be executed in a standalone manner; put another way, it's
+   now not dissimilar from the other SCALE challenges you've seen.
+  
+b. Change the Python program such that the attack function makes use of
+   this "external" version of the rsa_sign function (rather than the 
+   "internal", Python-based version).  Hopefully you can leverage some
+   of the work you've already done, in the sense that the approach to
+   executing and communicating with it are (very) similar.
+
+c. Port task 2. into C, which essentially means replacing ii. with a C
+   implementation of the co-processor based approach.
+
+d. Verify the attack still works.
+
+# =============================================================================
+# 4. Integrate the C program with the SCALE infrastructure
+
+A final implementation-related task would be to integrate the now C-based 
+target device model into the SCALE infrastructure.  Doing so would allow 
+associated challenges to be generated, in a similar way to the existing 
+challenges, and involves:
+
+a. generation of per-user challenge material, e.g., key material: given 
+   the use of RSA, this would be similar to existing challenges such as
+   rsa_padding,
+
+b. a written description of the challenge, i.e., context, goal, rules for
+   interaction with (or input and output to and from) the target device
+   model.
+
+# =============================================================================
+# 5. Write some sort of report to capture what you've done
+
+Depending on what is required from you, it could make sense to document
+what you've done in the form of a report.  I'd expect this could take a 
+similar form as a dissertation, although constrained to, e.g., reflect
+the timescale involved.
+
+Even if this is out of scope, a fall-back task is to offer document the
+implementation(s) so that you (or someone else) can understand them in
+the future!
+
+# =============================================================================
+      
+[1] https://en.wikipedia.org/wiki/RSA_(cryptosystem)
+[2] https://en.wikipedia.org/wiki/Chinese_remainder_theorem
+[3] https://link.springer.com/article/10.1007/s001450010016
+[4] https://pypi.org/project/pycryptodome/
+[5] https://cacr.uwaterloo.ca/hac/about/chap14.pdf
+[6] https://gmplib.org
+
+# =============================================================================
