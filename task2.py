@@ -1,6 +1,8 @@
 from task1 import gcd_extended, rsa_keygen, check_rsa_sign, attack
 from task2_coprocessor import Coprocessor
-import time
+import functools
+import random
+import math
 
 P_ADR = 0
 Q_ADR = 1
@@ -35,7 +37,7 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     # realistic version using registers etc
     
     # init coprocessor
-    c = Coprocessor(16)
+    c = Coprocessor(16, n_bits, f)
     c.empty_regs()
     c.reset_clock()
     
@@ -71,10 +73,42 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     c.mul(COMP_ADR_1, COMP_ADR_1, Q_ADR, N_ADR)
     c.add(C_ADR, C_ADR, COMP_ADR_1, N_ADR)
 
-    return c.R[C_ADR]
+    return c.R[C_ADR], c.clock
 
-# Main Code
-if  __name__ == '__main__':
+def attack(D, N, e):
+    print("Beginning attack!")
+    m = random.randint(2, N-1)
+    m_signed, clock_cycles = D(m, 0)
+
+    p, q = -1, -1 # temporary
+    for i in range(1, clock_cycles):
+        m_signed_faulty, _ = D(m, i)
+        # now compute 'p'
+        p = math.gcd(m_signed - m_signed_faulty, N)
+        if p == 1: continue
+        if p == N: continue
+        if N % p != 0: continue
+        q = N // p
+        break
+    assert(p*q == N)
+    print("\tFound p,q!")
+    
+    # Find d to 'prove' we have broken in
+    phi_n = (p-1)*(q-1)
+    d, _, gcd = gcd_extended(e, phi_n)
+    assert(gcd == 1)
+    d %= phi_n
+    print("\tFound d!")
+    print("Finished attack!")
+    return d
+
+# # Main Code
+if __name__ == '__main__':
     l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
-    check_rsa_sign(rsa_sign, p, q, N, e, d, l, n_checks=100)
+    check_rsa_sign(lambda *args, **kwargs: rsa_sign(*args, **kwargs)[0], p, q, N, e, d, l, n_checks=100)
+
+    D = functools.partial(rsa_sign, p, q, N, d, l)
+
+    d2 = attack(D, N, e)
+    assert(d == d2)
