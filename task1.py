@@ -80,9 +80,9 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     
     return c
 
-def check_rsa_sign(sign_func, p, q, N, e, d, l):
+def check_rsa_sign(sign_func, p, q, N, e, d, l, n_checks=1000):
     print("Checking rsa_sign")
-    for _ in range(1000):
+    for _ in range(n_checks):
         m = random.randint(2, N-1)
         c = sign_func(p, q, N, d, l, m)
         assert(pow(c, e, N) == m)
