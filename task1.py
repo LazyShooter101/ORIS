@@ -18,6 +18,7 @@ def gcd_extended(a, b):
     assert(old_s*a + old_t*b == old_r)
     return old_s, old_t, old_r
 
+
 def rsa_keygen(n_bits, verbosity=1):
     if verbosity >= 1: print("Starting rsa_keygen")
     # randomise p, q primes with n_bits/2 bits
@@ -52,8 +53,30 @@ def rsa_keygen(n_bits, verbosity=1):
     if verbosity >= 2: print("\td,e,N passed checks")
     return p, q, N, e, d
 
+
 def rsa_sign(p, q, N, d, m, f=0):
-    raise NotImplementedError()
+    # find c == m^d (mod N)
+    # using https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Computation
+    
+    # first compute a == m^d (mod p)
+    a = pow(m, d, p)
+    # and b == m^d (mod q)
+    b = pow(m, d, q)
+    # now c == a (mod p), c == b (mod q) can be computed in O(log(N)^2) time with CRT
+    x, y, gcd = gcd_extended(p, q)
+    assert(gcd == 1)
+    # => c == bxp + ayq (mod N) because xp + yq == 1 (mod N)
+    c = ((b*x*p % N) + (a*y*q % N)) % N
+    
+    return c
+
+def check_rsa_sign(p, q, N, e, d):
+    print("Checking rsa_sign")
+    for _ in range(100):
+        m = random.randint(2, N-1)
+        c = rsa_sign(p, q, N, d, m)
+        assert(pow(c, e, N) == m)
+    print("rsa_sign passed checks")
 
 def attack(D, N, e):
     raise NotImplementedError()
@@ -61,6 +84,8 @@ def attack(D, N, e):
 # Main Code
 if  __name__ == '__main__':
     p, q, N, e, d = rsa_keygen(1024, verbosity=2)
+    check_rsa_sign(p, q, N, e, d)
+    
 
     D = functools.partial(rsa_sign, p, q, N, d)
 
