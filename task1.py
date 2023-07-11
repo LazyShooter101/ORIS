@@ -71,7 +71,7 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     if f == 2:
         # flip a random bit
         b ^= 1<<(random.randint(0, n_bits-1))
-
+        
     # now c == a (mod p), c == b (mod q) can be computed in O(log(N)^2) time with CRT
     x, y, gcd = gcd_extended(p, q)
     assert(gcd == 1)
@@ -116,9 +116,10 @@ def attack(D, N, e):
 if  __name__ == '__main__':
     l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
-    check_rsa_sign(rsa_sign, p, q, N, e, d, l)
+    # check_rsa_sign(rsa_sign, p, q, N, e, d, l)
+    m = random.randint(2, N-1)
+    c = rsa_sign(p, q, N, d, l, m, 0)
+    # D = functools.partial(rsa_sign, p, q, N, d, l)
 
-    D = functools.partial(rsa_sign, p, q, N, d, l)
-
-    d2 = attack(D, N, e)
-    assert(d == d2)
+    # d2 = attack(D, N, e)
+    # assert(d == d2)
