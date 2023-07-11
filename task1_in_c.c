@@ -47,7 +47,10 @@ void rsaKeygen(mpz_t *p, mpz_t *q, mpz_t *N, mpz_t *e, mpz_t *d) {
         mpz_gcd(gcd, *e, phi_N);
     } while (!mpz_cmp_ui(gcd, 1));
 
-    // TODO: calc d
+    // calc d by doing extended gcd on e, phi_N:
+    mpz_t gcd_result;
+    mpz_init(gcd_result);
+    mpz_gcdext(gcd, *d, gcd_result, *e, phi_N);
 
     mpz_clear(phi_N);
     mpz_clear(gcd);
@@ -70,6 +73,10 @@ int main() {
     mpz_out_str(stdout,10,q);
     printf("\n");
     mpz_out_str(stdout,10,N);
+    printf("\n");
+    mpz_out_str(stdout,10,e);
+    printf("\n");
+    mpz_out_str(stdout,10,d);
 
 
     mpz_clear(p);
