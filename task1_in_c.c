@@ -45,17 +45,35 @@ void rsaKeygen(mpz_t *p, mpz_t *q, mpz_t *N, mpz_t *e, mpz_t *d) {
     do {
         mpz_urandomm(*e, rng, phi_N);
         mpz_gcd(gcd, *e, phi_N);
-    } while (!mpz_cmp_ui(gcd, 1));
+    } while (mpz_cmp_ui(gcd, 1) != 0); // its 0 when they're the same
 
     // calc d by doing extended gcd on e, phi_N:
-    mpz_t gcd_result;
+    mpz_t gcd_result; // dummy
     mpz_init(gcd_result);
     mpz_gcdext(gcd, *d, gcd_result, *e, phi_N);
+    assert(mpz_cmp_ui(gcd, 1) == 0); // check that the gcd is 1
+    mpz_mod(*d, *d, phi_N); // d %= phi(N)
 
+    // check that our numbers work by checking that for arbitrary m,
+    // (m^e)^d == m (mod N)
+    mpz_t m, exp_result;
+    mpz_init(m);
+    mpz_init(exp_result);
+    for (int i=0; i<100; ++i) {
+        mpz_urandomb(m, rng, l);
+        mpz_mod(m, m, *N);
+        mpz_powm(exp_result, m, *e, *N);
+        mpz_powm(exp_result, exp_result, *d, *N);
+        assert(mpz_cmp(m, exp_result) == 0); // check that they are equal
+    }
+
+    mpz_clear(m);
+    mpz_clear(exp_result);
     mpz_clear(phi_N);
     mpz_clear(gcd);
     mpz_clear(p_minus_one);
     mpz_clear(q_minus_one);
+    mpz_clear(gcd_result);
 
 }
 

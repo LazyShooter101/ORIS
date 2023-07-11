@@ -47,7 +47,7 @@ def rsa_keygen(n_bits, verbosity=1):
     d %= phi_n
 
     # now check that for some random message m,
-    # we have that ((m^e)^d) == 1 (mod N)
+    # we have that ((m^e)^d) == m (mod N)
     for _ in range(100):
         m = random.randint(2, N-1)
         assert(pow(pow(m, e, N), d, N) == m)
@@ -116,7 +116,7 @@ def attack(D, N, e):
 if  __name__ == '__main__':
     l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
-    # check_rsa_sign(rsa_sign, p, q, N, e, d, l)
+    check_rsa_sign(rsa_sign, p, q, N, e, d, l)
 
     D = functools.partial(rsa_sign, p, q, N, d, l)
 
