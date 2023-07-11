@@ -3,8 +3,11 @@
 #include <assert.h>
 #include <time.h>
 
+#define GENERATE_KEY false
+
 unsigned int l = 1024;
 
+#if GENERATE_KEY
 void rsaKeygen(mpz_t *p, mpz_t *q, mpz_t *N, mpz_t *e, mpz_t *d) {
     gmp_randstate_t rng;
     unsigned long seed = time(NULL);
@@ -76,6 +79,7 @@ void rsaKeygen(mpz_t *p, mpz_t *q, mpz_t *N, mpz_t *e, mpz_t *d) {
     mpz_clear(gcd_result);
 
 }
+#endif
 
 int main() {
     mpz_t p, q, N, e, d;
@@ -85,6 +89,7 @@ int main() {
     mpz_init(e);
     mpz_init(d);
 
+#if GENERATE_KEY
     rsaKeygen(&p, &q, &N, &e, &d);
     mpz_out_str(stdout,10,p);
     printf("\n");
@@ -95,6 +100,9 @@ int main() {
     mpz_out_str(stdout,10,e);
     printf("\n");
     mpz_out_str(stdout,10,d);
+#else
+    // read from stdin
+#endif
 
 
     mpz_clear(p);
