@@ -81,7 +81,7 @@ def attack(D, N, e):
     m_signed, clock_cycles = D(m, 0)
 
     p, q = -1, -1 # temporary
-    for i in range(1, clock_cycles):
+    for i in range(clock_cycles//2, clock_cycles):
         m_signed_faulty, _ = D(m, i)
         # now compute 'p'
         p = math.gcd(m_signed - m_signed_faulty, N)
