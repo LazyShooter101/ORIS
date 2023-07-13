@@ -1,9 +1,9 @@
-prog := task1_in_c
+prog := task2_in_c
 
 all: build run
 
 build:
-	gcc .\$(prog).c -o task1_in_c -lgmp
+	gcc .\$(prog).c -o $(prog) -lgmp
 
 run:
 	./$(prog).exe
