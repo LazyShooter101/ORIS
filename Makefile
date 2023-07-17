@@ -1,4 +1,4 @@
-prog := task2_in_c
+prog := task2_nonCRT
 
 all: build run
 
