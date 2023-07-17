@@ -1,4 +1,4 @@
-prog := task2_nonCRT
+prog := task2_nonCRT_speedup
 
 all: build run
 

@@ -23,33 +23,46 @@ def attack2(D, N, e):
     _, t0 = D(random.randint(2, N), 0)
     print("finding d...")
     for i in range(n):
-        for extra in "01":
+        broke = False
+        digits = ["0", "1"]
+        random.shuffle(digits)
+        for extra in digits:
             d_known_pow = int((d_known+extra).ljust(n, "0"), 2)
             # print(f"d_known_pow = {bin(d_known_pow)[2:].zfill(n)}")
             m = random.randint(2, N)
             S_hat, _ = D(m, t0-len(d_known)-1)
-            passed = False
-            print("start2")
-            q = np.power()
-            for b in range(n):
-                q = moduloMultiplication(1<<b, pow(m, d_known_pow, N), N)
-                X = S_hat + q
-                Y = S_hat - q
-                if pow(X, e, N) == m or pow(Y, e, N) == m:
-                    passed = True
-                    break
-            np.mul
-            print("stop2")
+            # instead of doing this:
+            # passed = False
+            # temp = pow(m, d_known_pow, N)
+            # for b in range(n):
+            #     q = moduloMultiplication(1<<b, temp, N)
+            #     X = S_hat + q
+            #     Y = S_hat - q
+            #     if pow(X, e, N) == m or pow(Y, e, N) == m:
+            #         passed = True
+            #         break
+            
+            # , use the c file which does it MUCH faster
+            with Popen('task2_nonCRT_speedup.exe', stdin=PIPE, stdout=PIPE, universal_newlines=True) as prog:
+                print(m,           file=prog.stdin, flush=True)
+                print(d_known_pow, file=prog.stdin, flush=True)
+                print(N,           file=prog.stdin, flush=True)
+                print(S_hat,       file=prog.stdin, flush=True)
+                print(e,           file=prog.stdin, flush=True)
+                passed = bool(int((prog.stdout.readline())))
             if passed: 
                 d_known = d_known + extra
                 print(f"{d_known}...({n-i})")
+                broke = True
                 break
+        if broke: continue
+        print("couldn't find d-digit")
     return int(d_known, 2)
 
 
 def attack(D, N, e):
     # return attack2(D, N, e)
-    m = 5 # choose 1 <= m <= n
+    m = 8 # choose 1 <= m <= n
     l = maths.ceil((n/m) * maths.log2(2*n))
     # get the length of computation
     _, t = D(random.randint(2, N), 0)
@@ -59,7 +72,7 @@ def attack(D, N, e):
     S_hat = []
     fs = []
     for i in range(l):
-        f =  random.randint(0, t)
+        f =  random.randint(0, t-1)
         fs.append((f, i))
         S_hat.append(D(M[i], f)[0])
         if (i % 128 == 0): print(f"{100 * i/l : .1f}% done")
@@ -90,18 +103,31 @@ def attack(D, N, e):
                 for j in range(l):
                     Sj = S_hat[j]
                     Mj = M[j]
-                    print(f"\t\tTrying j={j}/{l}")
-                    for b in range(n+1):
-                        q = ((2**b)*pow(Mj, w, N))%N
-                        X = Sj + q
-                        Y = Sj - q
-                        if (pow(X, e, N) == Mj):
-                            any_messages_pass = True
-                            break
-                        if (pow(Y, e, N) == Mj):
-                            any_messages_pass = True
-                            break
-                    if any_messages_pass: break
+                    
+                    if j%64 == 0: print(f"\t\tTrying j={j}/{l}")
+                    # for b in range(n+1):
+                    #     q = ((2**b)*pow(Mj, w, N))%N
+                    #     X = Sj + q
+                    #     Y = Sj - q
+                    #     if (pow(X, e, N) == Mj):
+                    #         any_messages_pass = True
+                    #         break
+                    #     if (pow(Y, e, N) == Mj):
+                    #         any_messages_pass = True
+                    #         break
+                    # if any_messages_pass: break
+
+                    with Popen('task2_nonCRT_speedup.exe', stdin=PIPE, stdout=PIPE, universal_newlines=True) as prog:
+                        print(Mj,    file=prog.stdin, flush=True)
+                        print(w,     file=prog.stdin, flush=True)
+                        print(N,     file=prog.stdin, flush=True)
+                        print(Sj, file=prog.stdin, flush=True)
+                        print(e,     file=prog.stdin, flush=True)
+                        passed = bool(int((prog.stdout.readline())))
+                    if passed: 
+                        any_messages_pass = True
+                        break
+                
                 if any_messages_pass:
                     print("this u works!!!!!")
                     print(f"u = {u}")
@@ -109,7 +135,7 @@ def attack(D, N, e):
                     for o in range(a-r, a):
                         d[o] = int(bin_u[o])
 
-                    print(f"new d = {''.join([str(x) for x in d])}")
+                    print(f"new d = {''.join([str(x) for x in d[::-1]])}")
                     i -= 1
                     u_passed = True
                     break
