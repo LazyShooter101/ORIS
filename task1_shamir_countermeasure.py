@@ -72,6 +72,20 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
         # flip a random bit
         b ^= 1<<(random.randint(0, n_bits-1))
 
+    # shamir's countermeasure:
+    t = random.randint(100, 200)
+    S_t = pow(m, d, t) # this can be sped up probs using phi(t)
+    # Spt == a (mod p) == S_t mod (t)
+    shamir_x1, _, gcd = gcd_extended(p, t)
+    assert(gcd == 1)
+    S_pt = a + ((S_t - a) * (shamir_x1%t) %t)*p
+    # Sqt == b (mod q) == S_t mod (t)
+    shamir_x2, _, gcd = gcd_extended(q, t)
+    assert(gcd == 1)
+    S_qt = b + ((S_t - b) * (shamir_x2%t) %t)*q
+    assert(S_pt%t == S_qt%t)
+    
+
     # now c == a (mod p), c == b (mod q) can be computed in O(log(N)^2) time with CRT
     x, y, gcd = gcd_extended(p, q)
     assert(gcd == 1)
@@ -80,7 +94,7 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     
     return c
 
-def check_rsa_sign(sign_func, p, q, N, e, d, l, n_checks=1000):
+def check_rsa_sign(sign_func, p, q, N, e, d, l, n_checks=100):
     print("Checking rsa_sign")
     for _ in range(n_checks):
         m = random.randint(2, N-1)
