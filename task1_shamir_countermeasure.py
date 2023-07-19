@@ -2,6 +2,14 @@ import functools
 from Crypto.Math import Primality
 import random
 import math
+import timeit
+
+def phi(n):
+    tot = 0
+    for i in range(n):
+        if math.gcd(i, n) == 1:
+            tot += 1
+    return tot
 
 def gcd_extended(a, b):
     # https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Pseudocode
@@ -60,41 +68,32 @@ def rsa_sign(p, q, N, d, n_bits, m, f=0):
     # find c == m^d (mod N)
     # using https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Computation
     
+    t = random.randint(20, 200)
+    phi_t = phi(t)
+
     # first compute a == m^d%p-1 (mod p)
-    a = pow(m, d%(p-1), p)
+    S_pt = pow(m, d%(phi_t*(p-1)), p*t)
     if f == 1:
         # flip a random bit
-        a ^= 1<<(random.randint(0, n_bits-1))
+        S_pt ^= 1<<(random.randint(0, n_bits-1))
 
     # then compute b == m^d%q-1 (mod q)
-    b = pow(m, d%(q-1), q)
+    S_qt = pow(m, d%(phi_t*(q-1)), q*t)
     if f == 2:
         # flip a random bit
-        b ^= 1<<(random.randint(0, n_bits-1))
+        S_qt ^= 1<<(random.randint(0, n_bits-1))    
 
-    # shamir's countermeasure:
-    t = random.randint(100, 200)
-    S_t = pow(m, d, t) # this can be sped up probs using phi(t)
-    # Spt == a (mod p) == S_t mod (t)
-    shamir_x1, _, gcd = gcd_extended(p, t)
-    assert(gcd == 1)
-    S_pt = a + ((S_t - a) * (shamir_x1%t) %t)*p
-    # Sqt == b (mod q) == S_t mod (t)
-    shamir_x2, _, gcd = gcd_extended(q, t)
-    assert(gcd == 1)
-    S_qt = b + ((S_t - b) * (shamir_x2%t) %t)*q
     assert(S_pt%t == S_qt%t)
-    
 
     # now c == a (mod p), c == b (mod q) can be computed in O(log(N)^2) time with CRT
     x, y, gcd = gcd_extended(p, q)
     assert(gcd == 1)
     # => c == bxp + ayq (mod N) because xp + yq == 1 (mod N)
-    c = ((b*x*p % N) + (a*y*q % N)) % N
+    c = (((S_qt%q)*x*p % N) + ((S_pt%p)*y*q % N)) % N
     
     return c
 
-def check_rsa_sign(sign_func, p, q, N, e, d, l, n_checks=100):
+def check_rsa_sign(sign_func, p, q, N, e, d, l, n_checks=1000):
     print("Checking rsa_sign")
     for _ in range(n_checks):
         m = random.randint(2, N-1)
@@ -126,11 +125,15 @@ def attack(D, N, e):
     print("Finished attack!")
     return d
 
+
 # Main Code
 if  __name__ == '__main__':
     l = 1024
     p, q, N, e, d = rsa_keygen(l, verbosity=2)
     check_rsa_sign(rsa_sign, p, q, N, e, d, l)
+    def rsa_sign_timer_func():
+        _ = rsa_sign(p, q, N, d, l, random.randint(2, N), 0)
+    print(timeit.timeit(stmt=lambda: rsa_sign_timer_func(), number=10000))
     # m = random.randint(2, N-1)
     # c = rsa_sign(p, q, N, d, l, m, 0)
     # print(f"p: {p}\nq: {q}\nN: {N}\nd: {d}\nm: {m}\nf: {0}\n\nc: {c}")
