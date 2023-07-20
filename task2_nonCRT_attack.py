@@ -22,6 +22,8 @@ def attack2(D, N, e):
     d_known = ""
     _, t0 = D(random.randint(2, N), 0)
     print("finding d...")
+    start_time = time.perf_counter()
+    times_passed = 0
     for i in range(n):
         broke = False
         digits = ["0", "1"]
@@ -57,11 +59,13 @@ def attack2(D, N, e):
                 break
         if broke: continue
         print("couldn't find d-digit")
+    end_time = time.perf_counter()
+    print(f"Took {end_time-start_time} seconds")
     return int(d_known, 2)
 
 
 def attack(D, N, e):
-    # return attack2(D, N, e)
+    return attack2(D, N, e)
     m = 8 # choose 1 <= m <= n
     l = maths.ceil((n/m) * maths.log2(2*n))
     # get the length of computation
