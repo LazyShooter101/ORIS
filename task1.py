@@ -19,7 +19,7 @@ def gcd_extended(a, b):
     return old_s, old_t, old_r
 
 
-def rsa_keygen(n_bits, verbosity=1):
+def rsa_keygen(n_bits, verbosity=1, n_checks=100):
     if verbosity >= 1: print("Starting rsa_keygen")
     # randomise p, q primes with n_bits/2 bits
     p = int(Primality.generate_probable_prime(exact_bits=n_bits//2))
@@ -48,7 +48,7 @@ def rsa_keygen(n_bits, verbosity=1):
 
     # now check that for some random message m,
     # we have that ((m^e)^d) == m (mod N)
-    for _ in range(100):
+    for _ in range(n_checks):
         m = random.randint(2, N-1)
         assert(pow(pow(m, e, N), d, N) == m)
     if verbosity >= 2: print("\td,e,N passed checks")
